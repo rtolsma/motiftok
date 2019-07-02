@@ -166,7 +166,10 @@ class Trainer:
                     print(f'{j}:', sub_seq)
 
     ### Setup Deeplift for affinity scoring, only for models trained on full sequences
-    def getDeepliftScores(self, weight_path, yaml_path):
+    def getDeepliftScores(self, weight_path, yaml_path, data=None):
+        if data is None:
+            data = self.X[:, 0, :, :]
+
         deeplift_model = kc.convert_model_from_saved_files(
             weight_path,
             yaml_path,
@@ -191,7 +194,7 @@ class Trainer:
         num_refs_per_seq = 10
         scores = np.array(contribs_many_refs_func(
                     task_idx=0,
-                    input_data_sequences=self.X[:,0,:,:],
+                    input_data_sequences=data,
                     num_refs_per_seq=num_refs_per_seq,
                     batch_size=50,
                     progress_update=4000,
@@ -199,7 +202,7 @@ class Trainer:
 
         hypothetical_scores = hypothetical_contribs_many_refs_func(
                                 task_idx=0,
-                                input_data_sequences=self.X[:,0,:,:],
+                                input_data_sequences=data,
                                 num_refs_per_seq=num_refs_per_seq,
                                 batch_size=50,
                                 progress_update=4000,
