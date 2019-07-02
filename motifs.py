@@ -81,7 +81,7 @@ class DijkMotifs(Motifs):
                 #    continue
 
                 # i think the start,ends were reflected somehow
-                start_pos, end_pos = 150 - end_pos, 150 - start_pos + 1
+                #start_pos, end_pos = 150 - end_pos, 150 - start_pos + 1
 
                 matches.append(Motif(start_pos, end_pos, seq, name))
             motifs.append(matches)

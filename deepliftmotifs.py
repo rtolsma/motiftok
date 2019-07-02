@@ -151,17 +151,14 @@ class Trainer:
 
     ## Deeplift Scoring Visualization
     def plotDeepLift(self, importance_scores, num=20, verbose=False):
-        motif_matches = [self.motifs.get_matches(i) for i in self.motifs.non_empty_indices]
-
         for i in range(importance_scores.shape[0]):
             if i > num:
                 break
             highlights = {}
-            highlights['b'] = [(m.start, m.end) for m in motif_matches[i]]
+            highlights['b'] = [(m.start, m.end) for m in self.motifs.get_matches(i)]
             viz_sequence.plot_weights(importance_scores[i], highlight=highlights)
-            
             if verbose:
-                for j, m in enumerate(motif_matches[i]):
+                for j, m in enumerate(self.motifs.get_matches(i)):
                     sub_seq = m.matched
                     print(f'{j}:', sub_seq)
 
@@ -175,12 +172,21 @@ class Trainer:
             yaml_path,
             nonlinear_mxts_mode=deeplift.layers.NonlinearMxtsMode.DeepLIFT_GenomicsDefault
             )
+        deeplift_contribs_func = deeplift_model.get_target_contribs_func(
+                                    find_scores_layer_idx=0,
+                                    target_layer_idx=-1)
 
+        scores = np.array(deeplift_contribs_func(task_idx=0,
+                                         input_data_list=[data],
+                                         batch_size=50,
+                                         progress_update=4000))
+        '''
         contribs_func = deeplift_model.get_target_contribs_func(find_scores_layer_idx=0,
                                                         target_layer_idx=-1)
         contribs_many_refs_func = get_shuffle_seq_ref_function(
             score_computation_function=contribs_func,
             shuffle_func=dinuc_shuffle)
+        '''
 
         multipliers_func = deeplift_model.get_target_multipliers_func(find_scores_layer_idx=0,
                                                                     target_layer_idx=-1)
@@ -192,20 +198,12 @@ class Trainer:
             shuffle_func=dinuc_shuffle)
         #idk??
         num_refs_per_seq = 10
-        scores = np.array(contribs_many_refs_func(
-                    task_idx=0,
-                    input_data_sequences=data,
-                    num_refs_per_seq=num_refs_per_seq,
-                    batch_size=50,
-                    progress_update=4000,
-                ))
-
         hypothetical_scores = hypothetical_contribs_many_refs_func(
                                 task_idx=0,
                                 input_data_sequences=data,
                                 num_refs_per_seq=num_refs_per_seq,
                                 batch_size=50,
-                                progress_update=4000,
+                                progress_update=1000,
                             )
         # mean normalize?
         hypothetical_scores = hypothetical_scores - np.mean(hypothetical_scores, axis=-1)[:,:,None]
