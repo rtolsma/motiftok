@@ -48,21 +48,27 @@ class Trainer:
     we should omit full sequences that don't match any motifs, as the tokenized model
     won't have those to train off of.
     '''
-    def __init__(self, motifs):
+    def __init__(self, motifs, X=None, Y=None):
         self.motifs = motifs
-        X, Y, annotations = get_ordered_data_with_annotations()
-        self.X = X[motifs.non_empty_indices, :, :, :, 0]
-        self.Y = Y[motifs.non_empty_indices]
-        self.annotations = annotations[motifs.non_empty_indices]
+
+        if X is not None and Y is not None:
+            self.X = X
+            self.Y = Y
+        else:
+                # default to dijk
+            X, Y, annotations = get_ordered_data_with_annotations()
+            self.X = X[motifs.non_empty_indices, :, :, :, 0]
+            self.Y = Y[motifs.non_empty_indices]
+            self.annotations = annotations[motifs.non_empty_indices]
         indices = np.arange(len(motifs.non_empty_indices))
         np.random.shuffle(indices)
         split = int(0.8 * indices.shape[0])
         self.train_indices = indices[:split]
         self.test_indices = indices[split:]
 
-    def trainFullSequence(self, seqmodel=None, epochs=50):    
+    def trainFullSequence(self, seqmodel=None, epochs=50, input_shape=(150,4), output_shape=6):    
         if seqmodel is None:
-            seqmodel = Trainer.getModel()
+            seqmodel = Trainer.getModel(input_shape=input_shape, output_shape=output_shape)
         ### Full Sequence Training
         X_train, Y_train = self.X[self.train_indices], self.Y[self.train_indices]
 
@@ -117,7 +123,7 @@ class Trainer:
 
 
     @staticmethod
-    def getModel(regularization=True, input_shape=(150,4), num_units=1):
+    def getModel(regularization=True, input_shape=(150,4), output_shape=6,num_units=1):
         # play around with hyperparameters?? seems like a fine model so far tho
         s = 7
         w = 10
@@ -140,14 +146,14 @@ class Trainer:
             
         model.add(Flatten())
         model.add(Dense(l, activation='relu'))
-        model.add(Dense(6))
+        model.add(Dense(output_shape))
         model.compile(optimizer='adam', loss='mse')
         return model
 
 
-    def getScores(self, seqmodel, temp_path='./models/tempscores.h5'):
+    def getScores(self, seqmodel, temp_path='./models/tempscores.h5', sequence_length=150):
         seqmodel.save(temp_path)
-        return self.getDeepliftScores(temp_path, None)
+        return self.getDeepliftScores(temp_path, None, sequence_length=sequence_length)
 
     ## Deeplift Scoring Visualization
     def plotDeepLift(self, importance_scores, num=20, verbose=False):
@@ -163,10 +169,11 @@ class Trainer:
                     print(f'{j}:', sub_seq)
 
     ### Setup Deeplift for affinity scoring, only for models trained on full sequences
-    def getDeepliftScores(self, weight_path, yaml_path, data=None):
+    def getDeepliftScores(self, weight_path, yaml_path, data=None, sequence_length=150):
         if data is None:
             data = self.X[:, 0, :, :]
 
+        data_indices, references = self.motifs.get_references(sequence_length)
         deeplift_model = kc.convert_model_from_saved_files(
             weight_path,
             yaml_path,
@@ -176,10 +183,31 @@ class Trainer:
                                     find_scores_layer_idx=0,
                                     target_layer_idx=-1)
 
-        scores = np.array(deeplift_contribs_func(task_idx=0,
-                                         input_data_list=[data],
-                                         batch_size=50,
-                                         progress_update=4000))
+        multipliers_func = deeplift_model.get_target_multipliers_func(find_scores_layer_idx=0,
+                                                                    target_layer_idx=-1)
+        hypothetical_contribs_func = get_hypothetical_contribs_func_onehot(multipliers_func)
+
+
+
+        final_scores = []
+        final_hyp = []
+        for (ind, ref) in zip(data_indices, references):
+            scores = np.array(deeplift_contribs_func(task_idx=0,
+                                            input_data_list=[data[ind].astype(float)],
+                                            input_references_list=[ref.astype(float)],
+                                            batch_size=50,
+                                            progress_update=4000))
+            hyp_scores = hypothetical_contribs_func(
+                            task_idx=0,
+                            input_data_list=[data[ind].astype(float)],
+                            input_references_list=[ref.astype(float)],
+                            batch_size=50,
+                            progress_update=1000,
+                        )
+            final_scores.append(scores)
+            final_hyp.append(hyp_scores)
+        return np.concatenate(final_scores, axis=0), np.concatenate(final_hyp, axis=0)
+
         '''
         contribs_func = deeplift_model.get_target_contribs_func(find_scores_layer_idx=0,
                                                         target_layer_idx=-1)
@@ -187,13 +215,11 @@ class Trainer:
             score_computation_function=contribs_func,
             shuffle_func=dinuc_shuffle)
         '''
+       
 
-        multipliers_func = deeplift_model.get_target_multipliers_func(find_scores_layer_idx=0,
-                                                                    target_layer_idx=-1)
-        hypothetical_contribs_func = get_hypothetical_contribs_func_onehot(multipliers_func)
 
         #Once again, we rely on multiple shuffled references
-        hypothetical_contribs_many_refs_func = get_shuffle_seq_ref_function(
+        '''hypothetical_contribs_many_refs_func = get_shuffle_seq_ref_function(
             score_computation_function=hypothetical_contribs_func,
             shuffle_func=dinuc_shuffle)
         #idk??
@@ -205,12 +231,17 @@ class Trainer:
                                 batch_size=50,
                                 progress_update=1000,
                             )
+        '''
         # mean normalize?
-        hypothetical_scores = hypothetical_scores - np.mean(hypothetical_scores, axis=-1)[:,:,None]
-        
-        return scores, hypothetical_scores
+        #hypothetical_scores = hypothetical_scores - np.mean(hypothetical_scores, axis=-1)[:,:,None]
+        # return scores, hypothetical_scores
 
-    def tfmodiscoResults(self, scores, hypothetical_scores):
+
+    def tfmodiscoResults(self, scores, hypothetical_scores, data=None):
+        if data is None:
+            data = self.X[:, 0,:,:]
+            data_inds, _ = self.motifs.get_references()
+            data = data[[i for d in data_inds for i in d]]
         task_to_scores, task_to_hyp_scores = {'task0':scores}, {'task0': hypothetical_scores}
         tfmodisco_results = TfModiscoWorkflow(seqlets_to_patterns_factory=
                                                 modisco.tfmodisco_workflow.seqlets_to_patterns.TfModiscoSeqletsToPatternsFactory(
@@ -222,6 +253,6 @@ class Trainer:
                                             )(task_names=['task0'], 
                                                 contrib_scores=task_to_scores,
                                                 hypothetical_contribs=task_to_hyp_scores,
-                                                one_hot=self.X[:, 0,:,:])
+                                                one_hot=data)
         return tfmodisco_results
 

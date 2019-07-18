@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from dijk import get_ordered_data_with_annotations
 
+from data.processing import one_hot_encode
 
 ## Everything is aligned with Dijk Annotations from get_ordered_annotations
 ## ...keep track of missing indices from empty motif matches
@@ -55,27 +56,64 @@ class Motifs:
         return list(map(lambda x: (x.start, x.end) , self.motifs[index]))
 
 
+    def get_references(self, length=150):
+        '''
+        Returns: list of list of indices + ref one-hot encode list
+        '''
+        # TODO: Fix...should'nt be hardcoded...
+        return [self.non_empty_indices], [np.zeros((length, 4))]
+
+class StubMotifs(Motifs):
+    def __init__(self, length):
+        motifs = [[]] * length
+        super().__init__(motifs)
+        self.non_empty_indices = list(range(length))
+
 
 class DijkMotifs(Motifs):
+    
+    REFS = {#'context_PHO5_NATIVE': 'GGGGACCAGGTGCCGTAAGAATCCGGTACCACGTTTTCGCATAGAACGCAACTGCACAATGCCAAAAAAAGTAAAAGTGATTAAAAGAGTTAATCTCTAAATGAATCGATACAACCTTGGCACTCACACGTGGCGATCCTAGGGCGATCA',
+            'context_TSA1_NATIVE': 'GGGGACCAGGTGCCGTAAGGCTCGCATATGTTCTGGCCCGTCGGGTTTTCTGACAAATTGTCCTTTAGGGATTTTTCGGTTTGGCTCGGGTTGGCAAAGTCGGCTGGCAACAAACCAGGACATATATAAAGGGCGATCCTAGGGCGATCA',
+            'context_RPL3_10_NATIVE': 'GGGGACCAGGTGCCGTAAGACCGAAAGTACACAACTGTTTTCCATTTTTTTTTTTTTTTTTTCAGTGATCATCGTCCATGAAAAAAATTTTTCATTTGTCTCTTTCGTGCTTCCTGGATATATAAAATACGAGCGATCCTAGGGCGATCA' ,
+            'context_HIS3_NATIVE': 'GGGGACCAGGTGCCGTAAGATCGGACCACTAGAGCTTGACGGGGAAAGCCGGCGAACGTGGCGAGAAAGGAAGGGAAGAAAGCGTTTTCATTTTTTTTTTTCCACCTAGCGGATGACTCTTTTTTTTTCTTAGCGATCCTAGGGCGATCA',
+            'context_GAL1_10_NATIVE': 'GGGGACCAGGTGCCGTAAGGATACACTAACGGATTAGAAGCCGCCGAGCGGGCGACAGCCCTCCGACGGAAGACTCTCCTCCGTGCGTCCTCGTCTTCGAAACGCAGATGTGCCTCGCGCCGCACTGCTCCGGCGATCCTAGGGCGATCA'
+            }
 
     def __init__(self):
         _, _, self.annotations = get_ordered_data_with_annotations()
-        motifs = DijkMotifs.convert_dijk_motifs(self.annotations)
+        motifs, references = DijkMotifs.convert_dijk_motifs(self.annotations)
         super().__init__(motifs)
+        # hax for testing rn
+        self.non_empty_indices = list(range(len(self.motifs)))
+        self.references = references
 
+    def get_references(self):
+        data_list, refs_list = [], []
+        for k,v in DijkMotifs.REFS.items():
+            data_list.append(self.references[k])
+            refs_list.append(one_hot_encode(v))
+        return data_list, refs_list
 
     @classmethod
     def convert_dijk_motifs(self, annotations):
+
         motifs = []
+        references = {} # dict of contexts => indices
         for i,s in enumerate(annotations):
             matches = []
             seq = annotations[i]['Sequence']
+            context = annotations[i]['Context'].replace('NULL', 'NATIVE')
+            if seq in DijkMotifs.REFS.values():
+                continue
+            if references.get(context, None) is None:
+                references[context] = []
+            references[context].append(i)
+
 
             for e in s['Elements']:
                 end_pos = int(float(e['End']))
                 start_pos = int(float(e['Start']))
                 name = DijkMotifs.convertMotifName(e['Name'])
-                
                 # the triplet NNN mutations aren't useful??
                 #if name.startswith('triplet'):
                 #    continue
@@ -85,7 +123,7 @@ class DijkMotifs(Motifs):
 
                 matches.append(Motif(start_pos, end_pos, seq, name))
             motifs.append(matches)
-        return motifs
+        return motifs, references
 
 
     @classmethod
@@ -96,7 +134,7 @@ class DijkMotifs(Motifs):
         names. Some names output will not be in the Regulon database
         i.e native promoters or polya, but any van Dijk annotation 
         containing a real motif name will have the correct output
-        '''    
+        '''
         name = name.lower()
         if (name.startswith('allpssms') 
             or name.startswith('giniger')

@@ -66,7 +66,7 @@ def load_annotations():
                 vals = [(v.split('=')[0], v.split('=')[1]) for v in val.split(',')]
                 element_dict = dict(vals)
                 elements.append(element_dict)
-        annotation = {'SetName': a[2], 'Sequence': a[3], 'Context': annotation_info[3].split('=')[0]}
+        annotation = {'SetName': a[2], 'Sequence': a[3], 'Context': annotation_info[3].split('=')[1]}
         annotation.update({'Elements': elements})
         annotations.update({int(float(a[1])): annotation})
     return annotations
