@@ -68,15 +68,20 @@ class Trainer:
 
     def trainFullSequence(self, seqmodel=None, epochs=50, input_shape=(150,4), output_shape=6):    
         if seqmodel is None:
-            seqmodel = Trainer.getModel(input_shape=input_shape, output_shape=output_shape)
+            seqmodel = Trainer.getModel(input_shape=input_shape, output_shape=output_shape, num_units=5)
         ### Full Sequence Training
         X_train, Y_train = self.X[self.train_indices], self.Y[self.train_indices]
 
         # 2nd axis stores reverse complement, so unfold that
-        X_train_rev = np.concatenate((X_train[:,0,:,:], X_train[:,1,:,:]), axis=0)
         Y_train_rev = np.concatenate((Y_train, Y_train), axis=0)
 
+        '''
+        X_train_rev = np.concatenate((X_train[:,0,:,:], X_train[:,1,:,:]), axis=0)
+
         seqmodel.fit(X_train_rev, Y_train_rev, validation_split=0.2, batch_size=256, epochs=epochs)
+        '''
+        # optimize memory
+        seqmodel.fit(X_train.reshape(-1, X_train.shape[2], X_train.shape[3]),  Y_train_rev, batch_size=512, epochs=epochs)
         return seqmodel
     
 
@@ -139,7 +144,7 @@ class Trainer:
             model.add(Conv1D(filters=s, kernel_size=(w, ), padding='same',activation='relu'))
 
             if reg:
-                # model.add(BatchNormalization()) Probs not useful
+                model.add(BatchNormalization())
                 model.add(Dropout(p))
         for _ in range(num_units):
             addConvUnits(model, regularization)

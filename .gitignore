@@ -3,3 +3,4 @@
 __pycache__/
 data/sim
 data/sharon_data_processed.p
+data/sharpr/
