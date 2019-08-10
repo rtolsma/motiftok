@@ -48,7 +48,7 @@ class Trainer:
     we should omit full sequences that don't match any motifs, as the tokenized model
     won't have those to train off of.
     '''
-    def __init__(self, motifs, X=None, Y=None):
+    def __init__(self, motifs=None, X=None, Y=None):
         self.motifs = motifs
 
         if X is not None and Y is not None:
@@ -128,12 +128,12 @@ class Trainer:
 
 
     @staticmethod
-    def getModel(regularization=True, input_shape=(150,4), output_shape=6,num_units=1):
+    def getModel(regularization=True, input_shape=(150,4), output_shape=6, num_units=1):
         # play around with hyperparameters?? seems like a fine model so far tho
-        s = 7
+        s = 16
         w = 10
         p = 0.5
-        l = 10
+        l = 20
         model = Sequential()
         model.add(Conv1D(filters=s, kernel_size=(w, ), padding='same',activation='relu', input_shape=input_shape))
 
@@ -174,16 +174,16 @@ class Trainer:
                     print(f'{j}:', sub_seq)
 
     ### Setup Deeplift for affinity scoring, only for models trained on full sequences
-    def getDeepliftScores(self, weight_path, yaml_path, data=None, sequence_length=150):
+    def getDeepliftScores(self, weight_path, yaml_path, data=None, sequence_length=150, use_references=True):
         if data is None:
             data = self.X[:, 0, :, :]
 
-        data_indices, references = self.motifs.get_references(sequence_length)
         deeplift_model = kc.convert_model_from_saved_files(
             weight_path,
             yaml_path,
             nonlinear_mxts_mode=deeplift.layers.NonlinearMxtsMode.DeepLIFT_GenomicsDefault
             )
+
         deeplift_contribs_func = deeplift_model.get_target_contribs_func(
                                     find_scores_layer_idx=0,
                                     target_layer_idx=-1)
@@ -193,7 +193,7 @@ class Trainer:
         hypothetical_contribs_func = get_hypothetical_contribs_func_onehot(multipliers_func)
 
 
-
+        data_indices, references = self.motifs.get_references(sequence_length)
         final_scores = []
         final_hyp = []
         for (ind, ref) in zip(data_indices, references):
