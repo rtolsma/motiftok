@@ -68,7 +68,7 @@ class Trainer:
 
     def trainFullSequence(self, seqmodel=None, epochs=50, input_shape=(150,4), output_shape=6):    
         if seqmodel is None:
-            seqmodel = Trainer.getModel(input_shape=input_shape, output_shape=output_shape, num_units=5)
+            seqmodel = Trainer.getModel(input_shape=input_shape, output_shape=output_shape, num_units=1)
         ### Full Sequence Training
         X_train, Y_train = self.X[self.train_indices], self.Y[self.train_indices]
 
@@ -81,6 +81,7 @@ class Trainer:
         seqmodel.fit(X_train_rev, Y_train_rev, validation_split=0.2, batch_size=256, epochs=epochs)
         '''
         # optimize memory
+        print(X_train.reshape(-1, X_train.shape[2], X_train.shape[3]).shape)
         seqmodel.fit(X_train.reshape(-1, X_train.shape[2], X_train.shape[3]),  Y_train_rev, batch_size=512, epochs=epochs)
         return seqmodel
     
@@ -130,10 +131,10 @@ class Trainer:
     @staticmethod
     def getModel(regularization=True, input_shape=(150,4), output_shape=6, num_units=1):
         # play around with hyperparameters?? seems like a fine model so far tho
-        s = 16
+        s = 10
         w = 10
         p = 0.5
-        l = 20
+        l = 10
         model = Sequential()
         model.add(Conv1D(filters=s, kernel_size=(w, ), padding='same',activation='relu', input_shape=input_shape))
 
@@ -144,10 +145,11 @@ class Trainer:
             model.add(Conv1D(filters=s, kernel_size=(w, ), padding='same',activation='relu'))
 
             if reg:
-                model.add(BatchNormalization())
-                model.add(Dropout(p))
-        for _ in range(num_units):
-            addConvUnits(model, regularization)
+                pass
+                #model.add(BatchNormalization())
+                #model.add(Dropout(p))
+            for _ in range(num_units):
+                addConvUnits(model, regularization)
             
         model.add(Flatten())
         model.add(Dense(l, activation='relu'))
@@ -191,8 +193,21 @@ class Trainer:
         multipliers_func = deeplift_model.get_target_multipliers_func(find_scores_layer_idx=0,
                                                                     target_layer_idx=-1)
         hypothetical_contribs_func = get_hypothetical_contribs_func_onehot(multipliers_func)
+        hypothetical_contribs_many_refs_func = get_shuffle_seq_ref_function(
+            score_computation_function=hypothetical_contribs_func,
+            shuffle_func=dinuc_shuffle)
+        #idk??
+        num_refs_per_seq = 10
+        hypothetical_scores = hypothetical_contribs_many_refs_func(
+                                task_idx=0,
+                                input_data_sequences=data,
+                                num_refs_per_seq=num_refs_per_seq,
+                                batch_size=50,
+                                progress_update=1000,
+                            )
+       
 
-
+        '''
         data_indices, references = self.motifs.get_references(sequence_length)
         final_scores = []
         final_hyp = []
@@ -214,39 +229,13 @@ class Trainer:
         return np.concatenate(final_scores, axis=0), np.concatenate(final_hyp, axis=0)
 
         '''
-        contribs_func = deeplift_model.get_target_contribs_func(find_scores_layer_idx=0,
-                                                        target_layer_idx=-1)
-        contribs_many_refs_func = get_shuffle_seq_ref_function(
-            score_computation_function=contribs_func,
-            shuffle_func=dinuc_shuffle)
-        '''
-       
-
-
-        #Once again, we rely on multiple shuffled references
-        '''hypothetical_contribs_many_refs_func = get_shuffle_seq_ref_function(
-            score_computation_function=hypothetical_contribs_func,
-            shuffle_func=dinuc_shuffle)
-        #idk??
-        num_refs_per_seq = 10
-        hypothetical_scores = hypothetical_contribs_many_refs_func(
-                                task_idx=0,
-                                input_data_sequences=data,
-                                num_refs_per_seq=num_refs_per_seq,
-                                batch_size=50,
-                                progress_update=1000,
-                            )
-        '''
-        # mean normalize?
-        #hypothetical_scores = hypothetical_scores - np.mean(hypothetical_scores, axis=-1)[:,:,None]
-        # return scores, hypothetical_scores
-
+        return scores, hypothetical_scores
 
     def tfmodiscoResults(self, scores, hypothetical_scores, data=None):
         if data is None:
             data = self.X[:, 0,:,:]
-            data_inds, _ = self.motifs.get_references()
-            data = data[[i for d in data_inds for i in d]]
+            #data_inds, _ = self.motifs.get_references()
+            #data = data[[i for d in data_inds for i in d]]
         task_to_scores, task_to_hyp_scores = {'task0':scores}, {'task0': hypothetical_scores}
         tfmodisco_results = TfModiscoWorkflow(seqlets_to_patterns_factory=
                                                 modisco.tfmodisco_workflow.seqlets_to_patterns.TfModiscoSeqletsToPatternsFactory(
