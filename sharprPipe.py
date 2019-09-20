@@ -130,7 +130,7 @@ with h5py.File('./dragonn/train.hdf5','r') as hf:
 
 seqmodel = None
 with open('./dragonn/model.json', 'r') as f:
-    model = keras.models.model_from_json(f.read())
+    seqmodel = keras.models.model_from_json(f.read())
 seqmodel.load_weights('./dragonn/pretrained.hdf5')
 
 #seqmodel = t.trainFullSequence(epochs=1, input_shape=(145,4), output_shape=8)
