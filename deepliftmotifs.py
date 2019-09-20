@@ -68,7 +68,7 @@ class Trainer:
 
     def trainFullSequence(self, seqmodel=None, epochs=50, input_shape=(150,4), output_shape=6):    
         if seqmodel is None:
-            seqmodel = Trainer.getModel(input_shape=input_shape, output_shape=output_shape, num_units=1)
+            seqmodel = Trainer.getModel(input_shape=input_shape, output_shape=output_shape, num_units=8)
         ### Full Sequence Training
         X_train, Y_train = self.X[self.train_indices], self.Y[self.train_indices]
 
@@ -82,7 +82,7 @@ class Trainer:
         '''
         # optimize memory
         print(X_train.reshape(-1, X_train.shape[2], X_train.shape[3]).shape)
-        seqmodel.fit(X_train.reshape(-1, X_train.shape[2], X_train.shape[3]),  Y_train_rev, batch_size=512, epochs=epochs)
+        seqmodel.fit(X_train.reshape(-1, X_train.shape[2], X_train.shape[3]),  Y_train_rev, batch_size=128, epochs=epochs)
         return seqmodel
     
 
@@ -131,8 +131,8 @@ class Trainer:
     @staticmethod
     def getModel(regularization=True, input_shape=(150,4), output_shape=6, num_units=1):
         # play around with hyperparameters?? seems like a fine model so far tho
-        s = 10
-        w = 10
+        s = 16
+        w = 20
         p = 0.5
         l = 10
         model = Sequential()
@@ -147,7 +147,7 @@ class Trainer:
             if reg:
                 pass
                 #model.add(BatchNormalization())
-                #model.add(Dropout(p))
+                model.add(Dropout(p))
             for _ in range(num_units):
                 addConvUnits(model, regularization)
             
