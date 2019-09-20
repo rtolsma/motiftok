@@ -7,13 +7,16 @@
 import h5py
 import pandas as pd
 import numpy as np
+import os
+
 
 from data.processing import one_hot_encode, reverse_complement
 
 from deepliftmotifs import Trainer
 from motifs import DijkMotifs, FimoMotifs, StubMotifs
-import numpy as np
-import pandas as pd
+
+import keras
+
 from modisco.visualization import viz_sequence
 
 from dijk import get_ordered_data_with_annotations
@@ -26,7 +29,8 @@ import pickle
 
 
 def modisco_things(tfmodisco):
-    get_ipython().system("rm 'tfmodiscoresults.hdf5'")
+    #get_ipython().system("rm 'tfmodiscoresults.hdf5'")
+    os.remove('tfmodiscoresults.hdf5')
     grp = h5py.File('tfmodiscoresults.hdf5')
     tfmodisco.save_hdf5(grp)
     hdf5_results = h5py.File('tfmodiscoresults.hdf5', 'r')
@@ -110,10 +114,10 @@ def process_hypothetical_scores(hyp_scores):
         ids.append(id_list)
 
     with open('/motifvol/ids.pickle', 'wb') as f:
-        pickle.dumps(ids, f)
+        pickle.dump(ids, f)
 
     with open('/motifvol/hyp_scores.pickle', 'wb') as f:
-        pickle.dumps(modiscos, f)
+        pickle.dump(modiscos, f)
 
 #pd.read_csv('./data/sharpr/sharprFullDataMatrix.tsv', delimiter='\t').iloc[:10].columns
 #x,y = get_sharpr_data(size=-1)
@@ -125,9 +129,9 @@ with h5py.File('./dragonn/train.hdf5','r') as hf:
 #t = Trainer(StubMotifs(length=x.shape[0]), X=X, Y=Y)
 
 seqmodel = None
-with open('dragonn/model.json', 'r') as f:
+with open('./dragonn/model.json', 'r') as f:
     model = keras.models.model_from_json(f.read())
-seqmodel.load_weights('dragonn/pretrained.hdf5')
+seqmodel.load_weights('./dragonn/pretrained.hdf5')
 
 #seqmodel = t.trainFullSequence(epochs=1, input_shape=(145,4), output_shape=8)
 hyp_scores = get_hyp_scores(seqmodel, X)
