@@ -100,11 +100,11 @@ def get_sharpr_data(size=-1):
     Y = data[cols].iloc[indices].values
     return X, Y
 
-def process_hypothetical_scores(hyp_scores):
+def process_hypothetical_scores(hyp_scores, X):
     modiscos = []
     ids = []
     for k in range(len(hyp_scores)):
-        scores = hyp_scores[k] * t.X[:,0, :, :]
+        scores = hyp_scores[k] * X 
         # scores = scores.mean(axis=0)
         hypothetical_scores = hyp_scores[k]
         #t.plotDeepLift(scores, num=20, verbose=True)
@@ -136,4 +136,4 @@ seqmodel.load_weights('./dragonn/pretrained.hdf5')
 #seqmodel = t.trainFullSequence(epochs=1, input_shape=(145,4), output_shape=8)
 hyp_scores = get_hyp_scores(seqmodel, X)
 
-process_hypothetical_scores(hyp_scores)
+process_hypothetical_scores(hyp_scores, X)
