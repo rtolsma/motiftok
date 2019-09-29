@@ -100,7 +100,7 @@ def get_sharpr_data(size=-1):
     Y = data[cols].iloc[indices].values
     return X, Y
 
-def process_hypothetical_scores(hyp_scores, X):
+def process_hypothetical_scores(hyp_scores, X, t):
     modiscos = []
     ids = []
     for k in range(len(hyp_scores)):
@@ -126,7 +126,7 @@ X, Y = None, None
 with h5py.File('./dragonn/train.hdf5','r') as hf:
     X , Y = hf['X']['sequence'][:], hf['Y']['output'][:]
 
-#t = Trainer(StubMotifs(length=x.shape[0]), X=X, Y=Y)
+t = Trainer(StubMotifs(length=x.shape[0]), X=X, Y=Y)
 
 seqmodel = None
 with open('./dragonn/model.json', 'r') as f:
@@ -135,5 +135,6 @@ seqmodel.load_weights('./dragonn/pretrained.hdf5')
 
 #seqmodel = t.trainFullSequence(epochs=1, input_shape=(145,4), output_shape=8)
 hyp_scores = get_hyp_scores(seqmodel, X)
-
-process_hypothetical_scores(hyp_scores, X)
+with open('hyp_scores.test', 'wb') as f:
+    pickle.dump(hyp_scores, f)
+process_hypothetical_scores(hyp_scores, X, t)
