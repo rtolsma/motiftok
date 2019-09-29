@@ -126,7 +126,7 @@ X, Y = None, None
 with h5py.File('./dragonn/train.hdf5','r') as hf:
     X , Y = hf['X']['sequence'][:], hf['Y']['output'][:]
 
-t = Trainer(StubMotifs(length=x.shape[0]), X=X, Y=Y)
+t = Trainer(StubMotifs(length=X.shape[0]), X=X, Y=Y)
 
 seqmodel = None
 with open('./dragonn/model.json', 'r') as f:
