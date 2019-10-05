@@ -116,7 +116,7 @@ def process_hypothetical_scores(hyp_scores, X, t):
     with open('/motifvol/ids.pickle', 'wb') as f:
         pickle.dump(ids, f)
 
-    with open('/motifvol/hyp_scores.pickle', 'wb') as f:
+    with open('/motifvol/modisco_results.pickle', 'wb') as f:
         pickle.dump(modiscos, f)
 
 #pd.read_csv('./data/sharpr/sharprFullDataMatrix.tsv', delimiter='\t').iloc[:10].columns
@@ -135,6 +135,8 @@ seqmodel.load_weights('./dragonn/pretrained.hdf5')
 
 #seqmodel = t.trainFullSequence(epochs=1, input_shape=(145,4), output_shape=8)
 hyp_scores = get_hyp_scores(seqmodel, X)
-with open('hyp_scores.test', 'wb') as f:
-    pickle.dump(hyp_scores, f)
+with h5py.File('hyp_scores.test', 'w') as f:
+    f.create_dataset('hypothetical_scores', data=hyp_scores) 
+    
+    #pickle.dump(hyp_scores, f)
 process_hypothetical_scores(hyp_scores, X, t)
