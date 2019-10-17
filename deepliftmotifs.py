@@ -233,7 +233,8 @@ class Trainer:
 
     def tfmodiscoResults(self, scores, hypothetical_scores, data=None):
         if data is None:
-            data = self.X[:, 0,:,:]
+            # hax cuz need to refactor for flattened seqs
+            data = self.X[:,:,:] if len(X.shape) == 3 else: self.X[:, 0, :, :]
             #data_inds, _ = self.motifs.get_references()
             #data = data[[i for d in data_inds for i in d]]
         task_to_scores, task_to_hyp_scores = {'task0':scores}, {'task0': hypothetical_scores}

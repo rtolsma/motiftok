@@ -108,7 +108,7 @@ def process_hypothetical_scores(hyp_scores, X, t):
         # scores = scores.mean(axis=0)
         hypothetical_scores = hyp_scores[k]
         #t.plotDeepLift(scores, num=20, verbose=True)
-        tfmodisco = t.tfmodiscoResults(scores, hypothetical_scores)
+        tfmodisco = t.tfmodiscoResults(scores, hypothetical_scores, data=X)
         modiscos.append(tfmodisco)
         id_list = modisco_things(tfmodisco)
         ids.append(id_list)
@@ -122,6 +122,7 @@ def process_hypothetical_scores(hyp_scores, X, t):
 #pd.read_csv('./data/sharpr/sharprFullDataMatrix.tsv', delimiter='\t').iloc[:10].columns
 #x,y = get_sharpr_data(size=-1)
 
+
 X, Y = None, None
 with h5py.File('./dragonn/train.hdf5','r') as hf:
     X , Y = hf['X']['sequence'][:], hf['Y']['output'][:]
@@ -133,10 +134,17 @@ with open('./dragonn/model.json', 'r') as f:
     seqmodel = keras.models.model_from_json(f.read())
 seqmodel.load_weights('./dragonn/pretrained.hdf5')
 
+'''
 #seqmodel = t.trainFullSequence(epochs=1, input_shape=(145,4), output_shape=8)
 hyp_scores = get_hyp_scores(seqmodel, X)
 with h5py.File('hyp_scores.test', 'w') as f:
     f.create_dataset('hypothetical_scores', data=hyp_scores) 
-    
-    #pickle.dump(hyp_scores, f)
+'''
+
+# Read in hyp_scores from the h5py dataset!
+hyp_file = h5py.File('hyp_scores.test', 'r')
+hyp_scores = hyp_file.get('hypothetical_scores')
+
+# convert hdf5 data to numpy array: shape (12, 914348, 145, 4)
+hyp_scores = np.array(hyp_scores)
 process_hypothetical_scores(hyp_scores, X, t)
