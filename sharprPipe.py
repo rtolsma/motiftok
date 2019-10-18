@@ -30,7 +30,10 @@ import pickle
 
 def modisco_things(tfmodisco):
     #get_ipython().system("rm 'tfmodiscoresults.hdf5'")
-    os.remove('tfmodiscoresults.hdf5')
+    try:
+        os.remove('tfmodiscoresults.hdf5')
+    except:
+        print('No results saved here previously')
     grp = h5py.File('tfmodiscoresults.hdf5')
     tfmodisco.save_hdf5(grp)
     hdf5_results = h5py.File('tfmodiscoresults.hdf5', 'r')
